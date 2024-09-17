@@ -33,3 +33,5 @@ coverage
 
 !*.csv
 !*.zip
+
+*.env

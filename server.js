@@ -8,8 +8,26 @@ const unzipper = require("unzipper");
 const path = require("path");
 const bodyParser = require("body-parser");
 const { parse, isBefore } = require("date-fns"); // Add this line to import date-fns for date parsing and comparison
-
+const { MongoClient } = require('mongodb');
+require('dotenv').config();
 const app = express();
+
+let db;
+
+async function connectToMongoDB() {
+  try {
+    const client = new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    db = client.db('creds');
+    // console.log(db);
+    
+  } catch (error) {
+    console.error('Failed to connect to MongoDB:', error);
+    process.exit(1);
+  }
+}
+
+connectToMongoDB();
 
 // Debugging middleware
 app.use((req, res, next) => {
@@ -58,13 +76,56 @@ app.post("/api/set-flattrade-credentials", (req, res) => {
     userid
   };
 
-  res.json({ message: "Flattrade Credentials updated successfully" });
-  console.log(`${new Date().toLocaleTimeString()}  Updated Flattrade credentials`);
+  console.log("Updated credentials and security IDs:", storedCredentials);
+  res.json({ message: "Credentials and security IDs updated successfully" });
 });
+
+app.post("/api/get-shoonya-token", async (req, res) => {
+  console.log("Received POST request to get-shoonya-token");
+  try {
+    // Fetch the token from the predefined table
+    const credentials = await db.collection('shoonya').findOne(
+      { uniqueIdentifier: 'utsavShoonyaMainAccount' }
+    );
+    console.log(credentials.user_token);
+    if (credentials && credentials.user_token) {
+      // If we have a stored token, return it
+      res.json({ token: credentials.user_token });
+    } else {
+      // If no stored token is found
+      res.status(404).json({ message: "Shoonya token not found" });
+    }
+  } catch (error) {
+    console.error("Error in get-shoonya-token:", error);
+    res.status(500).json({ message: "Failed to fetch Shoonya token" });
+  }
+});
+
+app.post("/api/get-flattrade-token", async (req, res) => {
+  console.log("Received POST request to get-flattrade-token");
+  try {
+    // Fetch the token from the predefined table
+    const credentials = await db.collection('flattrade').findOne(
+      { uniqueIdentifier: 'utsavFlattradeMainAccount' }
+    );
+    console.log(credentials.user_token);
+    if (credentials && credentials.user_token) {
+      // If we have a stored token, return it
+      res.json({ token: credentials.user_token });
+    } else {
+      // If no stored token is found
+      res.status(404).json({ message: "flattrade token not found" });
+    }
+  } catch (error) {
+    console.error("Error in get-flattrade-token:", error);
+    res.status(500).json({ message: "Failed to fetch flattrade token" });
+  }
+});
+
 // Add a new POST endpoint to set Shoonya credentials
 app.post("/api/set-shoonya-credentials", (req, res) => {
   console.log(
-    "Received POST request to set Shoonya credentials"
+    "Received POST request to set Shoonya credentials and security IDs"
   );
   const { usersession, userid } =
     req.body;
@@ -234,10 +295,10 @@ app.get("/flattradeSymbols", (req, res) => {
       }
     })
     .on("end", () => {
-      console.log("\nFinished processing file");
-      console.log(`Call Strikes: ${callStrikes.length}`);
-      console.log(`Put Strikes: ${putStrikes.length}`);
-      console.log(`Expiry Dates: ${expiryDates.size}`);
+      // console.log("\nFinished processing file");
+      // console.log(`Call Strikes: ${callStrikes.length}`);
+      // console.log(`Put Strikes: ${putStrikes.length}`);
+      // console.log(`Expiry Dates: ${expiryDates.size}`);
 
       // Filter out past dates and sort the remaining expiry dates
       const today = new Date();
@@ -455,10 +516,10 @@ app.get("/shoonyaSymbols", (req, res) => {
             }
           })
           .on("end", () => {
-            console.log("\nFinished processing file");
-            console.log(`Call Strikes: ${callStrikes.length}`);
-            console.log(`Put Strikes: ${putStrikes.length}`);
-            console.log(`Expiry Dates: ${expiryDates.size}`);
+            // console.log("\nFinished processing file");
+            // console.log(`Call Strikes: ${callStrikes.length}`);
+            // console.log(`Put Strikes: ${putStrikes.length}`);
+            // console.log(`Expiry Dates: ${expiryDates.size}`);
 
             const today = new Date();
             const sortedExpiryDates = Array.from(expiryDates)
