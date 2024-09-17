@@ -62,18 +62,17 @@ let storedCredentials = {
   shoonya: {
     usersession: "",
     userid: "",
-  }
+  },
 };
 // Update the POST endpoint to store the credentials
 app.post("/api/set-flattrade-credentials", (req, res) => {
   console.log("Received POST request to set credentials");
-  const { usersession, userid } =
-    req.body;
+  const { usersession, userid } = req.body;
 
-  // Store the credentials 
+  // Store the credentials
   storedCredentials.flattrade = {
     usersession,
-    userid
+    userid,
   };
 
   console.log("Updated credentials and security IDs:", storedCredentials);
@@ -133,11 +132,13 @@ app.post("/api/set-shoonya-credentials", (req, res) => {
   // Store the Shoonya credentials and security IDs
   storedCredentials.shoonya = {
     usersession,
-    userid
+    userid,
   };
 
   res.json({ message: "Shoonya Credentials updated successfully" });
-  console.log(`${new Date().toLocaleTimeString()}  Updated Shoonya credentials`);
+  console.log(
+    `${new Date().toLocaleTimeString()}  Updated Shoonya credentials`
+  );
 });
 
 // Update the GET endpoint to use the stored credentials
@@ -151,7 +152,9 @@ app.get("/flattrade-websocket-data", (req, res) => {
   };
 
   res.json(websocketData);
-  console.log(`${new Date().toLocaleTimeString()}  Sending Flattrade websocket data`);
+  console.log(
+    `${new Date().toLocaleTimeString()}  Sending Flattrade websocket data`
+  );
 });
 // Add a new GET endpoint to retrieve Shoonya websocket data
 app.get("/shoonya-websocket-data", (req, res) => {
@@ -207,9 +210,10 @@ app.post("/flattradeFundLimit", async (req, res) => {
     );
     res.json(response.data);
   } catch (error) {
-    res
-    .status(500)
-    .json({ message: "Error fetching Flattrade fund limits", error: error.message });
+    res.status(500).json({
+      message: "Error fetching Flattrade fund limits",
+      error: error.message,
+    });
     console.error("Error fetching Flattrade fund limits:", error);
   }
 });
@@ -253,12 +257,50 @@ app.post("/flattradePlaceOrder", async (req, res) => {
       }
     );
     res.json(response.data);
-    console.log(`\nFlattrade Order Place details:`, { exch, tsym, qty, prc, prd, trantype, prctyp, ret }, response.data);
+    console.log(
+      `\nFlattrade Order Place details:`,
+      { exch, tsym, qty, prc, prd, trantype, prctyp, ret },
+      response.data
+    );
   } catch (error) {
-    res
-    .status(500)
-    .json({ message: "Error placing Flattrade Place order", error: error.message });
+    res.status(500).json({
+      message: "Error placing Flattrade Place order",
+      error: error.message,
+    });
     console.error("Error placing Flattrade Place order:", error);
+  }
+});
+// Broker Flattrade - Get Order Margin
+app.post("/flattradeGetOrderMargin", async (req, res) => {
+  const jKey = req.headers.authorization?.split(" ")[1];
+  const jData = req.body.jData;
+
+  if (!jKey) {
+    return res
+      .status(400)
+      .json({ message: "Token is missing. Please generate a token first." });
+  }
+
+  const payload = `jKey=${jKey}&jData=${jData}`;
+
+  try {
+    const response = await axios.post(
+      "https://piconnect.flattrade.in/PiConnectTP/GetOrderMargin",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+    res.json(response.data);
+    console.log(`\nFlattrade Get Order Margin details:`, response.data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error getting Flattrade order margin",
+      error: error.message,
+    });
+    console.error("Error getting Flattrade order margin:", error);
   }
 });
 // Broker Flattrade - Get Symbols
@@ -406,9 +448,10 @@ app.post("/flattradeCancelOrder", async (req, res) => {
     res.json(response.data);
     console.log(`\n Flattrade Cancel Order:`, { norenordno }, response.data);
   } catch (error) {
-    res
-    .status(500)
-    .json({ message: "Error cancelling Flattrade order", error: error.message });
+    res.status(500).json({
+      message: "Error cancelling Flattrade order",
+      error: error.message,
+    });
     console.error("Error cancelling Flattrade order:", error);
   }
 });
@@ -453,9 +496,10 @@ app.post("/shoonyaFundLimit", async (req, res) => {
     );
     res.json(response.data);
   } catch (error) {
-    res
-    .status(500)
-    .json({ message: "Error fetching Shoonya fund limits", error: error.message });
+    res.status(500).json({
+      message: "Error fetching Shoonya fund limits",
+      error: error.message,
+    });
     console.error("Error fetching Shoonya fund limits:", error);
   }
 });
@@ -546,9 +590,10 @@ app.get("/shoonyaSymbols", (req, res) => {
       }
     })
     .on("error", (error) => {
-      res
-      .status(500)
-      .json({ message: "Failed to process Shoonya zip file", error: error.message });
+      res.status(500).json({
+        message: "Failed to process Shoonya zip file",
+        error: error.message,
+      });
       console.error(`Error processing Shoonya zip file ${zipFilePath}:`, error);
     });
 });
@@ -592,12 +637,50 @@ app.post("/shoonyaPlaceOrder", async (req, res) => {
       }
     );
     res.json(response.data);
-    console.log(`\nFlattrade Order Place details:`, { exch, tsym, qty, prc, prd, trantype, prctyp, ret }, response.data);
+    console.log(
+      `\nFlattrade Order Place details:`,
+      { exch, tsym, qty, prc, prd, trantype, prctyp, ret },
+      response.data
+    );
   } catch (error) {
-    res
-    .status(500)
-    .json({ message: "Error placing Shoonya Place order", error: error.message });
+    res.status(500).json({
+      message: "Error placing Shoonya Place order",
+      error: error.message,
+    });
     console.error("Error placing Shoonya Place order:", error);
+  }
+});
+// Broker Shoonya - Get Order Margin
+app.post("/shoonyaGetOrderMargin", async (req, res) => {
+  const jKey = req.headers.authorization?.split(" ")[1];
+  const jData = req.body.jData;
+
+  if (!jKey) {
+    return res
+      .status(400)
+      .json({ message: "Token is missing. Please generate a token first." });
+  }
+
+  const payload = `jKey=${jKey}&jData=${jData}`;
+
+  try {
+    const response = await axios.post(
+      "https://api.shoonya.com/NorenWClientTP/GetOrderMargin",
+      payload,
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      }
+    );
+    res.json(response.data);
+    console.log(`\nFlattrade Get Order Margin details:`, response.data);
+  } catch (error) {
+    res.status(500).json({
+      message: "Error getting Shoonya order margin",
+      error: error.message,
+    });
+    console.error("Error getting Shoonya order margin:", error);
   }
 });
 // Broker Shoonya - Get Orders and Trades
@@ -680,9 +763,10 @@ app.post("/shoonyaCancelOrder", async (req, res) => {
     res.json(response.data);
     console.log(`\n Flattrade Cancel Order:`, { norenordno }, response.data);
   } catch (error) {
-    res
-    .status(500)
-    .json({ message: "Error cancelling Shoonya order", error: error.message });
+    res.status(500).json({
+      message: "Error cancelling Shoonya order",
+      error: error.message,
+    });
     console.error("Error cancelling Shoonya order:", error);
   }
 });
