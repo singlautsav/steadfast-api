@@ -3,7 +3,8 @@ const router = express.Router();
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const { parse, isBefore } = require("date-fns"); // Add this line to import date-fns for date parsing and comparison
-
+const { MongoClient } = require('mongodb');
+require('dotenv').config();
 const app = express();
 
 let db;
@@ -23,6 +24,13 @@ async function connectToMongoDB() {
 
 connectToMongoDB();
 
+// Debugging middleware
+app.use((req, res, next) => {
+  console.log(`Received ${req.method} request for ${req.url}`);
+  next();
+});
+
+
 app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
 app.use(bodyParser.json());
@@ -31,14 +39,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 require("dotenv").config();
 
 let storedCredentials = {
-  flattrade: {
-    usersession: "",
-    userid: "",
-  },
-  shoonya: {
-    usersession: "",
-    userid: "",
-  },
+    flattrade: { usersession: "", userid: ""},
+    shoonya: { usersession: "", userid: ""},
 };
 // Update the POST endpoint to store the credentials
 app.post("/api/set-flattrade-credentials", (req, res) => {
@@ -51,15 +53,59 @@ app.post("/api/set-flattrade-credentials", (req, res) => {
     userid,
   };
 
-  res.json({ message: "Flattrade Credentials updated successfully" });
-  console.log(
-    `${new Date().toLocaleTimeString()}  Updated Flattrade credentials`
-  );
+  console.log("Updated credentials and security IDs:", storedCredentials);
+  res.json({ message: "Credentials and security IDs updated successfully" });
 });
+
+app.post("/api/get-shoonya-token", async (req, res) => {
+  console.log("Received POST request to get-shoonya-token");
+  try {
+    // Fetch the token from the predefined table
+    const credentials = await db.collection('shoonya').findOne(
+      { uniqueIdentifier: 'utsavShoonyaMainAccount' }
+    );
+    console.log(credentials.user_token);
+    if (credentials && credentials.user_token) {
+      // If we have a stored token, return it
+      res.json({ token: credentials.user_token });
+    } else {
+      // If no stored token is found
+      res.status(404).json({ message: "Shoonya token not found" });
+    }
+  } catch (error) {
+    console.error("Error in get-shoonya-token:", error);
+    res.status(500).json({ message: "Failed to fetch Shoonya token" });
+  }
+});
+
+app.post("/api/get-flattrade-token", async (req, res) => {
+  console.log("Received POST request to get-flattrade-token");
+  try {
+    // Fetch the token from the predefined table
+    const credentials = await db.collection('flattrade').findOne(
+      { uniqueIdentifier: 'utsavFlattradeMainAccount' }
+    );
+    console.log(credentials.user_token);
+    if (credentials && credentials.user_token) {
+      // If we have a stored token, return it
+      res.json({ token: credentials.user_token });
+    } else {
+      // If no stored token is found
+      res.status(404).json({ message: "flattrade token not found" });
+    }
+  } catch (error) {
+    console.error("Error in get-flattrade-token:", error);
+    res.status(500).json({ message: "Failed to fetch flattrade token" });
+  }
+});
+
 // Add a new POST endpoint to set Shoonya credentials
 app.post("/api/set-shoonya-credentials", (req, res) => {
-  console.log("Received POST request to set Shoonya credentials");
-  const { usersession, userid } = req.body;
+  console.log(
+    "Received POST request to set Shoonya credentials and security IDs"
+  );
+  const { usersession, userid } =
+    req.body;
 
   // Store the Shoonya credentials and security IDs
   storedCredentials.shoonya = {
@@ -103,16 +149,16 @@ app.get("/shoonya-websocket-data", (req, res) => {
 });
 // All Flattrade API Endpoints
 // Broker Flattrade - Proxy configuration for Flattrade API
-app.use(
-  "/flattradeApi",
-  createProxyMiddleware({
-    target: "https://authapi.flattrade.in",
-    changeOrigin: true,
-    pathRewrite: {
-      "^/flattradeApi": "", // remove /flattradeApi prefix when forwarding to target
-    },
-  })
-);
+// app.use(
+//   "/flattradeApi",
+//   createProxyMiddleware({
+//     target: "https://authapi.flattrade.in",
+//     changeOrigin: true,
+//     pathRewrite: {
+//       "^/flattradeApi": "", // remove /flattradeApi prefix when forwarding to target
+//     },
+//   })
+// );
 // Broker Flattrade - Get Funds
 app.post("/flattradeFundLimit", async (req, res) => {
   const jKey = req.query.FLATTRADE_API_TOKEN;
@@ -269,10 +315,10 @@ app.get("/flattradeSymbols", (req, res) => {
       }
     })
     .on("end", () => {
-      console.log("\nFinished processing file");
-      console.log(`Call Strikes: ${callStrikes.length}`);
-      console.log(`Put Strikes: ${putStrikes.length}`);
-      console.log(`Expiry Dates: ${expiryDates.size}`);
+      // console.log("\nFinished processing file");
+      // console.log(`Call Strikes: ${callStrikes.length}`);
+      // console.log(`Put Strikes: ${putStrikes.length}`);
+      // console.log(`Expiry Dates: ${expiryDates.size}`);
 
       // Filter out past dates and sort the remaining expiry dates
       const today = new Date();
@@ -318,41 +364,19 @@ app.get("/flattradeGetOrdersAndTrades", async (req, res) => {
     actid: clientId,
   })}`;
 
-  try {
-    // Fetch Order Book
-    const orderBookRes = await axios.post(
-      "https://piconnect.flattrade.in/PiConnectTP/OrderBook",
-      orderBookPayload,
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    );
-
-    // Fetch Trade Book
-    const tradeBookRes = await axios.post(
-      "https://piconnect.flattrade.in/PiConnectTP/TradeBook",
-      tradeBookPayload,
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      }
-    );
-
     res.json({
       orderBook: orderBookRes.data,
       tradeBook: tradeBookRes.data,
     });
-  } catch (error) {
-    res.status(500).json({
-      message: "Error fetching Flattrade orders and trades",
-      error: error.message,
-    });
-    console.error("Error fetching Flattrade orders and trades:", error);
-  }
-});
+  });
+//   } catch (error) {
+//     res.status(500).json({
+//       message: "Error fetching Flattrade orders and trades",
+//       error: error.message,
+//     });
+//     console.error("Error fetching Flattrade orders and trades:", error);
+//   }
+// });
 // Broker Flattrade - Route to cancel an order
 app.post("/flattradeCancelOrder", async (req, res) => {
   const { norenordno, uid } = req.body;
@@ -390,16 +414,16 @@ app.post("/flattradeCancelOrder", async (req, res) => {
 
 // All Shoonya API Endpoints
 // Broker Shoonya - Proxy configuration for Shoonya API
-app.use(
-  "/shoonyaApi",
-  createProxyMiddleware({
-    target: "https://api.shoonya.com",
-    changeOrigin: true,
-    pathRewrite: {
-      "^/shoonyaApi": "", // remove /shoonyaApi prefix when forwarding to target
-    },
-  })
-);
+// app.use(
+//   "/shoonyaApi",
+//   createProxyMiddleware({
+//     target: "https://api.shoonya.com",
+//     changeOrigin: true,
+//     pathRewrite: {
+//       "^/shoonyaApi": "", // remove /shoonyaApi prefix when forwarding to target
+//     },
+//   })
+// );
 // Broker Shoonya - Get Funds
 app.post("/shoonyaFundLimit", async (req, res) => {
   const jKey = req.query.SHOONYA_API_TOKEN;
@@ -492,10 +516,10 @@ app.get("/shoonyaSymbols", (req, res) => {
             }
           })
           .on("end", () => {
-            console.log("\nFinished processing file");
-            console.log(`Call Strikes: ${callStrikes.length}`);
-            console.log(`Put Strikes: ${putStrikes.length}`);
-            console.log(`Expiry Dates: ${expiryDates.size}`);
+            // console.log("\nFinished processing file");
+            // console.log(`Call Strikes: ${callStrikes.length}`);
+            // console.log(`Put Strikes: ${putStrikes.length}`);
+            // console.log(`Expiry Dates: ${expiryDates.size}`);
 
             const today = new Date();
             const sortedExpiryDates = Array.from(expiryDates)
