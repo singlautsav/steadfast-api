@@ -33,5 +33,9 @@ coverage
 
 !*.csv
 !*.zip
+<<<<<<< HEAD
 
 *.env
+=======
+package-lock.json
+>>>>>>> upstream

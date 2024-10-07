@@ -1,15 +1,9 @@
 const express = require("express");
+const router = express.Router();
 const cors = require("cors");
-const { createProxyMiddleware } = require("http-proxy-middleware");
-const axios = require("axios");
-const fs = require("fs");
-const csv = require("fast-csv");
-const unzipper = require("unzipper");
-const path = require("path");
 const bodyParser = require("body-parser");
 const { parse, isBefore } = require("date-fns"); // Add this line to import date-fns for date parsing and comparison
-const { MongoClient } = require('mongodb');
-require('dotenv').config();
+
 const app = express();
 
 let db;
@@ -29,31 +23,13 @@ async function connectToMongoDB() {
 
 connectToMongoDB();
 
-// Debugging middleware
-app.use((req, res, next) => {
-  console.log(`Received ${req.method} request for ${req.url}`);
-  next();
-});
-
-// Enable CORS for your frontend's origin
-app.use(
-  cors({
-    origin: "http://localhost:5173",
-    credentials: true,
-  })
-);
-
+app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true })); // Add this line to parse URL-encoded data
+app.use(bodyParser.urlencoded({ extended: true }));
 
 require("dotenv").config();
 
-app.get("/brokers", (req, res) => {
-  res.json(brokers);
-});
-
-// At the top of your file, add this to store the credentials
 let storedCredentials = {
   flattrade: {
     usersession: "",
@@ -75,59 +51,15 @@ app.post("/api/set-flattrade-credentials", (req, res) => {
     userid,
   };
 
-  console.log("Updated credentials and security IDs:", storedCredentials);
-  res.json({ message: "Credentials and security IDs updated successfully" });
+  res.json({ message: "Flattrade Credentials updated successfully" });
+  console.log(
+    `${new Date().toLocaleTimeString()}  Updated Flattrade credentials`
+  );
 });
-
-app.post("/api/get-shoonya-token", async (req, res) => {
-  console.log("Received POST request to get-shoonya-token");
-  try {
-    // Fetch the token from the predefined table
-    const credentials = await db.collection('shoonya').findOne(
-      { uniqueIdentifier: 'utsavShoonyaMainAccount' }
-    );
-    console.log(credentials.user_token);
-    if (credentials && credentials.user_token) {
-      // If we have a stored token, return it
-      res.json({ token: credentials.user_token });
-    } else {
-      // If no stored token is found
-      res.status(404).json({ message: "Shoonya token not found" });
-    }
-  } catch (error) {
-    console.error("Error in get-shoonya-token:", error);
-    res.status(500).json({ message: "Failed to fetch Shoonya token" });
-  }
-});
-
-app.post("/api/get-flattrade-token", async (req, res) => {
-  console.log("Received POST request to get-flattrade-token");
-  try {
-    // Fetch the token from the predefined table
-    const credentials = await db.collection('flattrade').findOne(
-      { uniqueIdentifier: 'utsavFlattradeMainAccount' }
-    );
-    console.log(credentials.user_token);
-    if (credentials && credentials.user_token) {
-      // If we have a stored token, return it
-      res.json({ token: credentials.user_token });
-    } else {
-      // If no stored token is found
-      res.status(404).json({ message: "flattrade token not found" });
-    }
-  } catch (error) {
-    console.error("Error in get-flattrade-token:", error);
-    res.status(500).json({ message: "Failed to fetch flattrade token" });
-  }
-});
-
 // Add a new POST endpoint to set Shoonya credentials
 app.post("/api/set-shoonya-credentials", (req, res) => {
-  console.log(
-    "Received POST request to set Shoonya credentials and security IDs"
-  );
-  const { usersession, userid } =
-    req.body;
+  console.log("Received POST request to set Shoonya credentials");
+  const { usersession, userid } = req.body;
 
   // Store the Shoonya credentials and security IDs
   storedCredentials.shoonya = {
@@ -337,10 +269,10 @@ app.get("/flattradeSymbols", (req, res) => {
       }
     })
     .on("end", () => {
-      // console.log("\nFinished processing file");
-      // console.log(`Call Strikes: ${callStrikes.length}`);
-      // console.log(`Put Strikes: ${putStrikes.length}`);
-      // console.log(`Expiry Dates: ${expiryDates.size}`);
+      console.log("\nFinished processing file");
+      console.log(`Call Strikes: ${callStrikes.length}`);
+      console.log(`Put Strikes: ${putStrikes.length}`);
+      console.log(`Expiry Dates: ${expiryDates.size}`);
 
       // Filter out past dates and sort the remaining expiry dates
       const today = new Date();
@@ -560,10 +492,10 @@ app.get("/shoonyaSymbols", (req, res) => {
             }
           })
           .on("end", () => {
-            // console.log("\nFinished processing file");
-            // console.log(`Call Strikes: ${callStrikes.length}`);
-            // console.log(`Put Strikes: ${putStrikes.length}`);
-            // console.log(`Expiry Dates: ${expiryDates.size}`);
+            console.log("\nFinished processing file");
+            console.log(`Call Strikes: ${callStrikes.length}`);
+            console.log(`Put Strikes: ${putStrikes.length}`);
+            console.log(`Expiry Dates: ${expiryDates.size}`);
 
             const today = new Date();
             const sortedExpiryDates = Array.from(expiryDates)
@@ -776,6 +708,8 @@ app.get("/", (req, res) => {
   res.send("Welcome to the Proxy Server");
 });
 const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+const HOST = 'localhost';
+
+app.listen(PORT, HOST, () => {
+console.log(`Server is running on http://${HOST}:${PORT}`);
 });
